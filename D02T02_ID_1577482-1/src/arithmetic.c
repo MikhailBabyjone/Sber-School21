@@ -1,12 +1,17 @@
 #include <stdio.h>
 
-int sum(int a, int b);
-
-int main()
-{
+int main(void){
+    int a, b, input;
+    input = scanf("%d %d",&a,&b);
+    if (input != 2){
+        printf("n/a");
+        return 0;
+    }
+if (b==0){
+    printf("%d %d %d n/a", a+b, a-b, a*b);
     return 0;
 }
-
-int sum(int a, int b){
-    return (2 * a * b) / (a - b);
+else {
+    printf("%d %d %d %d", a+b, a-b, a*b, a/b);
+return 0;}
 }
