@@ -6,7 +6,7 @@ int main(void){
     double y;
     int input;
     input = scanf("%lf", &x);
-    if (input!=1){
+    if (input!=1 || x==0){
         printf("n/a");
         return 0;
 
