@@ -1,8 +1,0 @@
-1.cd door_management_files/door_configuration/  \\ перейти в нужную директорию из src
-2.nano door_1.conf \\ открыть файл
-3.найти строку STATUS
-4.Изменить CLOSED на OPEN
-5.ctrl+o \\сохранить 
-6.Enter \\подтвердить
-7.ctrl+x \\ выйти
-
