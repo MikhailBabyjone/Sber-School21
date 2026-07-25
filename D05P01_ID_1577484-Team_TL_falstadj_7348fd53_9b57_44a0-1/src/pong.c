@@ -1,206 +1,114 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/select.h>
-#include <termios.h>
-#include <time.h>
-#include <unistd.h>
 
-#define W 80
-#define H 25
-#define PH 3
-#define WS 21
+char Key = '\0';
+int dirX = 1, dirY = 1;
+int Width = 80;
+int Height = 25;
+int P1U = 0;
+int PL = 3;
+int P2U = 0;
+int ballX = 0;
+int ballY = 0;
+int S1 = 0;
+int S2 = 0;
+int Input = 0;
 
-int ballX, ballY;
-int dirX, dirY;
-int paddle1Y, paddle2Y;
-int score1, score2;
-int gameOver;
-int stepMode;
-int stepPending;
-
-struct termios origTerm;
-
-void setupTerm() {
-    struct termios newTerm;
-    tcgetattr(STDIN_FILENO, &origTerm);
-    newTerm = origTerm;
-    newTerm.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &newTerm);
-}
-
-void restoreTerm() { tcsetattr(STDIN_FILENO, TCSANOW, &origTerm); }
-
-char getKey() {
-    char ch;
-    if (read(STDIN_FILENO, &ch, 1) > 0) {
-        return ch;
+void draw(void);
+int keyinput(void);
+void move_ball(void);
+int main(void) {
+    ballX = Width / 2;
+    ballY = Height / 2;
+    P1U = (Height / 2) - 1;
+    P2U = P1U;
+    printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+    draw();
+    while (S1 < 21 && S2 < 21) {
+        Input = keyinput();
+        if (Input == 1) {
+            move_ball();
+            printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+            draw();
+        }
+    }
+    if (S1 == 21) {
+        printf("Good Game!\nPlayer 1 wins\n");
+    } else if (S2 == 21) {
+        printf("Good Game!\nPlayer 2 wins\n");
     }
     return 0;
 }
 
-void initGame() {
-    ballX = W / 2;
-    ballY = H / 2;
-    dirX = 1;
-    dirY = 1;
-    paddle1Y = H / 2 - 1;
-    paddle2Y = H / 2 - 1;
-    score1 = 0;
-    score2 = 0;
-    gameOver = 0;
-    stepPending = 0;
-}
-
-void delayMs(int ms) {
-    struct timeval tv;
-    tv.tv_sec = ms / 1000;
-    tv.tv_usec = (ms % 1000) * 1000;
-    select(0, NULL, NULL, NULL, &tv);
-}
-
-void drawGame() {
-    system("clear");
-
-    for (int i = 0; i < W + 2; i++) {
-        printf("#");
-    }
-    printf("\n");
-
-    for (int y = 0; y < H; y++) {
-        printf("#");
-        for (int x = 0; x < W; x++) {
-            if (x == 0 && y >= paddle1Y && y < paddle1Y + PH) {
+void draw() {
+    for (int y = 0; y < Height; y++) {
+        for (int x = 0; x < Width; x++) {
+            if (x == 0 || x == Width - 1) {
+                printf("X");
+            } else if ((x == 1) && y >= P1U && y < P1U + PL) {
                 printf("|");
-            } else if (x == W - 1 && y >= paddle2Y && y < paddle2Y + PH) {
+            } else if ((x == Width - 2) && y >= P2U && y < P2U + PL) {
                 printf("|");
+            } else if (y == 0 || y == Height - 1) {
+                printf("#");
             } else if (x == ballX && y == ballY) {
-                printf("O");
+                printf("o");
             } else {
                 printf(" ");
             }
         }
-        printf("#\n");
-    }
-
-    for (int i = 0; i < W + 2; i++) {
-        printf("#");
+        printf("\n");
     }
     printf("\n");
-
-    printf("P1: %d  |  P2: %d\n", score1, score2);
-    if (stepMode) {
-        printf("[STEP] SPACE for next step\n");
+    printf("P1:  %d  ||  P2:  %d\n\nA/Z - left, K/M - right, Space - stepn\n\n\n\n\n", S1, S2);
+}
+int keyinput() {
+    Key = getchar();
+    int Correct = 0;
+    if ((Key == 'a' || Key == 'A') && P1U > 1) {
+        P1U--;
+        Correct = 1;
+    } else if ((Key == 'z' || Key == 'Z') && P1U < Height - 1 - PL) {
+        P1U++;
+        Correct = 1;
+    } else if ((Key == 'k' || Key == 'K') && P2U > 1) {
+        P2U--;
+        Correct = 1;
+    } else if ((Key == 'm' || Key == 'M') && P2U < Height - 1 - PL) {
+        P2U++;
+        Correct = 1;
+    } else if (Key == ' ') {
+        Correct = 1;
     }
-    printf("A/Z (P1) | K/M (P2) | SPACE (step)\n");
+    return Correct;
 }
 
-void moveBall() {
+void move_ball() {
     ballX += dirX;
     ballY += dirY;
-
-    if (ballY <= 0 || ballY >= H - 1) {
+    if (ballY <= 0 || ballY >= Height - 1) {
         dirY = -dirY;
         ballY += dirY;
     }
-
-    if (ballX == 1 && ballY >= paddle1Y && ballY < paddle1Y + PH) {
-        dirX = -dirX;
-        ballX += dirX;
-    } else if (ballX == W - 2 && ballY >= paddle2Y && ballY < paddle2Y + PH) {
+    if (ballX == 1 && ballY >= P1U && ballY < P1U + PL) {
         dirX = -dirX;
         ballX += dirX;
     }
-
+    if (ballX == Width - 2 && ballY >= P2U && ballY < P2U + PL) {
+        dirX = -dirX;
+        ballX += dirX;
+    }
     if (ballX < 0) {
-        score2++;
-        if (score2 >= WS) {
-            gameOver = 1;
-            drawGame();
-            printf("GAME OVER! P2 WINS!\n");
-            return;
-        }
-        ballX = W / 2;
-        ballY = H / 2;
+        S2++;
+        ballX = Width / 2;
+        ballY = Height / 2;
         dirX = 1;
-        dirY = (rand() % 2) ? 1 : -1;
-    } else if (ballX >= W) {
-        score1++;
-        if (score1 >= WS) {
-            gameOver = 1;
-            drawGame();
-            printf("GAME OVER! P1 WINS!\n");
-            return;
-        }
-        ballX = W / 2;
-        ballY = H / 2;
+        dirY = 1;
+    }
+    if (ballX > Width - 1) {
+        S1++;
+        ballX = Width / 2;
+        ballY = Height / 2;
         dirX = -1;
-        dirY = (rand() % 2) ? 1 : -1;
+        dirY = -1;
     }
-}
-
-void handleInput(char key) {
-    if (key == 'a' || key == 'A') {
-        if (paddle1Y > 0) paddle1Y--;
-    } else if (key == 'z' || key == 'Z') {
-        if (paddle1Y < H - PH) paddle1Y++;
-    } else if (key == 'k' || key == 'K') {
-        if (paddle2Y > 0) paddle2Y--;
-    } else if (key == 'm' || key == 'M') {
-        if (paddle2Y < H - PH) paddle2Y++;
-    } else if (key == ' ' && stepMode) {
-        stepPending = 1;
-    }
-}
-
-int main(int argc, char *argv[]) {
-    stepMode = 0;
-    for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], "--step") == 0) {
-            stepMode = 1;
-        }
-    }
-
-    srand(time(NULL));
-    initGame();
-    setupTerm();
-
-    char key;
-    int isRunning = 1;
-
-    printf("PONG START\n");
-    printf("Press any key\n");
-    getKey();
-
-    while (isRunning && !gameOver) {
-        drawGame();
-
-        key = getKey();
-        if (key == 'q' || key == 'Q') {
-            isRunning = 0;
-            break;
-        }
-
-        handleInput(key);
-
-        if (stepMode) {
-            if (stepPending) {
-                moveBall();
-                stepPending = 0;
-            }
-        } else {
-            moveBall();
-        }
-
-        delayMs(50);
-    }
-
-    restoreTerm();
-
-    if (!gameOver && isRunning) {
-        printf("Game ended!\n");
-    }
-
-    printf("Thanks!\n");
-    return 0;
 }
