@@ -1,114 +1,216 @@
 #include <stdio.h>
 
-char Key = '\0';
-int dirX = 1, dirY = 1;
-int Width = 80;
-int Height = 25;
-int P1U = 0;
-int PL = 3;
-int P2U = 0;
-int ballX = 0;
-int ballY = 0;
-int S1 = 0;
-int S2 = 0;
-int Input = 0;
+#define FIELD_WIDTH 80
+#define FIELD_HEIGHT 25
+#define PADDLE_LENGTH 3
+#define WIN_SCORE 21
+#define CLEAR_LINES 50
 
-void draw(void);
-int keyinput(void);
-void move_ball(void);
+typedef struct {
+    int ball_x;
+    int ball_y;
+    int dir_x;
+    int dir_y;
+    int paddle1_y;
+    int paddle2_y;
+    int score1;
+    int score2;
+} GameState;
+
+typedef struct {
+    GameState state;
+    int is_valid;
+} InputResult;
+
+GameState create_initial_state(void);
+void clear_screen(void);
+char cell_at(int x, int y, GameState state);
+void render_field(GameState state);
+void render_hud(GameState state);
+void render_game(GameState state);
+InputResult process_key(GameState state, int key);
+InputResult wait_for_valid_input(GameState state);
+GameState reset_ball_after_score(GameState state, int dir_x, int dir_y);
+GameState move_ball(GameState state);
+void print_winner(GameState state);
+
 int main(void) {
-    ballX = Width / 2;
-    ballY = Height / 2;
-    P1U = (Height / 2) - 1;
-    P2U = P1U;
-    printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-    draw();
-    while (S1 < 21 && S2 < 21) {
-        Input = keyinput();
-        if (Input == 1) {
-            move_ball();
-            printf("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-            draw();
+    int running = 1;
+    GameState state = create_initial_state();
+
+    render_game(state);
+    while (running == 1) {
+        InputResult input = wait_for_valid_input(state);
+        state = input.state;
+        state = move_ball(state);
+        render_game(state);
+        if (state.score1 >= WIN_SCORE || state.score2 >= WIN_SCORE) {
+            running = 0;
         }
     }
-    if (S1 == 21) {
-        printf("Good Game!\nPlayer 1 wins\n");
-    } else if (S2 == 21) {
-        printf("Good Game!\nPlayer 2 wins\n");
-    }
+    print_winner(state);
     return 0;
 }
 
-void draw() {
-    for (int y = 0; y < Height; y++) {
-        for (int x = 0; x < Width; x++) {
-            if (x == 0 || x == Width - 1) {
-                printf("X");
-            } else if ((x == 1) && y >= P1U && y < P1U + PL) {
-                printf("|");
-            } else if ((x == Width - 2) && y >= P2U && y < P2U + PL) {
-                printf("|");
-            } else if (y == 0 || y == Height - 1) {
-                printf("#");
-            } else if (x == ballX && y == ballY) {
-                printf("o");
-            } else {
-                printf(" ");
-            }
-        }
-        printf("\n");
-    }
-    printf("\n");
-    printf("P1:  %d  ||  P2:  %d\n\nA/Z - left, K/M - right, Space - stepn\n\n\n\n\n", S1, S2);
-}
-int keyinput() {
-    Key = getchar();
-    int Correct = 0;
-    if ((Key == 'a' || Key == 'A') && P1U > 1) {
-        P1U--;
-        Correct = 1;
-    } else if ((Key == 'z' || Key == 'Z') && P1U < Height - 1 - PL) {
-        P1U++;
-        Correct = 1;
-    } else if ((Key == 'k' || Key == 'K') && P2U > 1) {
-        P2U--;
-        Correct = 1;
-    } else if ((Key == 'm' || Key == 'M') && P2U < Height - 1 - PL) {
-        P2U++;
-        Correct = 1;
-    } else if (Key == ' ') {
-        Correct = 1;
-    }
-    return Correct;
+GameState create_initial_state(void) {
+    GameState state;
+
+    state.ball_x = FIELD_WIDTH / 2;
+    state.ball_y = FIELD_HEIGHT / 2;
+    state.dir_x = 1;
+    state.dir_y = 1;
+    state.paddle1_y = (FIELD_HEIGHT / 2) - 1;
+    state.paddle2_y = state.paddle1_y;
+    state.score1 = 0;
+    state.score2 = 0;
+    return state;
 }
 
-void move_ball() {
-    ballX += dirX;
-    ballY += dirY;
-    if (ballY <= 0 || ballY >= Height - 1) {
-        dirY = -dirY;
-        ballY += dirY;
+void clear_screen(void) {
+    int line = 0;
+
+    while (line < CLEAR_LINES) {
+        printf("\n");
+        line = line + 1;
     }
-    if (ballX == 1 && ballY >= P1U && ballY < P1U + PL) {
-        dirX = -dirX;
-        ballX += dirX;
+}
+
+char cell_at(int x, int y, GameState state) {
+    char result = ' ';
+
+    if (x == 0 || x == FIELD_WIDTH - 1) {
+        result = 'X';
+    } else if (x == 1 && y >= state.paddle1_y && y < state.paddle1_y + PADDLE_LENGTH) {
+        result = '|';
+    } else if (x == FIELD_WIDTH - 2 && y >= state.paddle2_y && y < state.paddle2_y + PADDLE_LENGTH) {
+        result = '|';
+    } else if (y == 0 || y == FIELD_HEIGHT - 1) {
+        result = '#';
+    } else if (x == state.ball_x && y == state.ball_y) {
+        result = 'o';
     }
-    if (ballX == Width - 2 && ballY >= P2U && ballY < P2U + PL) {
-        dirX = -dirX;
-        ballX += dirX;
+    return result;
+}
+
+void render_field(GameState state) {
+    int y = 0;
+
+    while (y < FIELD_HEIGHT) {
+        int x = 0;
+
+        while (x < FIELD_WIDTH) {
+            printf("%c", cell_at(x, y, state));
+            x = x + 1;
+        }
+        printf("\n");
+        y = y + 1;
     }
-    if (ballX < 0) {
-        S2++;
-        ballX = Width / 2;
-        ballY = Height / 2;
-        dirX = 1;
-        dirY = 1;
+}
+
+void render_hud(GameState state) {
+    printf("\n");
+    printf("P1:  %d  ||  P2:  %d\n\nA/Z - left, K/M - right, Space - step\n\n\n\n\n", state.score1,
+           state.score2);
+}
+
+void render_game(GameState state) {
+    clear_screen();
+    render_field(state);
+    render_hud(state);
+}
+
+InputResult process_key(GameState state, int key) {
+    InputResult result;
+
+    result.state = state;
+    result.is_valid = 0;
+    if (key == 'a' || key == 'A') {
+        if (state.paddle1_y > 1) {
+            result.state.paddle1_y = state.paddle1_y - 1;
+        }
+        result.is_valid = 1;
+    } else if (key == 'z' || key == 'Z') {
+        if (state.paddle1_y < FIELD_HEIGHT - 1 - PADDLE_LENGTH) {
+            result.state.paddle1_y = state.paddle1_y + 1;
+        }
+        result.is_valid = 1;
+    } else if (key == 'k' || key == 'K') {
+        if (state.paddle2_y > 1) {
+            result.state.paddle2_y = state.paddle2_y - 1;
+        }
+        result.is_valid = 1;
+    } else if (key == 'm' || key == 'M') {
+        if (state.paddle2_y < FIELD_HEIGHT - 1 - PADDLE_LENGTH) {
+            result.state.paddle2_y = state.paddle2_y + 1;
+        }
+        result.is_valid = 1;
+    } else if (key == ' ') {
+        result.is_valid = 1;
     }
-    if (ballX > Width - 1) {
-        S1++;
-        ballX = Width / 2;
-        ballY = Height / 2;
-        dirX = -1;
-        dirY = -1;
+    return result;
+}
+
+InputResult wait_for_valid_input(GameState state) {
+    InputResult result;
+
+    result.is_valid = 0;
+    result.state = state;
+    while (result.is_valid == 0) {
+        int key = getchar();
+
+        result = process_key(state, key);
+        state = result.state;
+    }
+    return result;
+}
+
+GameState reset_ball_after_score(GameState state, int dir_x, int dir_y) {
+    state.ball_x = FIELD_WIDTH / 2;
+    state.ball_y = FIELD_HEIGHT / 2;
+    state.dir_x = dir_x;
+    state.dir_y = dir_y;
+    return state;
+}
+
+GameState move_ball(GameState state) {
+    state.ball_x = state.ball_x + state.dir_x;
+    state.ball_y = state.ball_y + state.dir_y;
+    if (state.ball_y <= 0 || state.ball_y >= FIELD_HEIGHT - 1) {
+        state.dir_y = -state.dir_y;
+        state.ball_y = state.ball_y + state.dir_y;
+    }
+    if (state.ball_x == 1 && state.ball_y >= state.paddle1_y &&
+        state.ball_y < state.paddle1_y + PADDLE_LENGTH) {
+        state.dir_x = -state.dir_x;
+        state.ball_x = state.ball_x + state.dir_x;
+    }
+    if (state.ball_x == FIELD_WIDTH - 2 && state.ball_y >= state.paddle2_y &&
+        state.ball_y < state.paddle2_y + PADDLE_LENGTH) {
+        state.dir_x = -state.dir_x;
+        state.ball_x = state.ball_x + state.dir_x;
+    }
+    if (state.ball_x < 0) {
+        state.score2 = state.score2 + 1;
+        state = reset_ball_after_score(state, 1, 1);
+    } else if (state.ball_x > FIELD_WIDTH - 1) {
+        state.score1 = state.score1 + 1;
+        state = reset_ball_after_score(state, -1, -1);
+    }
+    return state;
+}
+
+void print_winner(GameState state) {
+    int winner = 0;
+
+    if (state.score1 >= WIN_SCORE) {
+        winner = 1;
+    } else if (state.score2 >= WIN_SCORE) {
+        winner = 2;
+    }
+    if (winner == 1) {
+        printf("Good Game!\nPlayer 1 wins\n");
+    }
+    if (winner == 2) {
+        printf("Good Game!\nPlayer 2 wins\n");
     }
 }
