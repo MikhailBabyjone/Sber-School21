@@ -13,6 +13,7 @@ int read_field(int field[HEIGHT][WIDTH]);
 int count_neighbors(int field[HEIGHT][WIDTH], int row, int col);
 void next_generation(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]);
 void copy_field(int dst[HEIGHT][WIDTH], int src[HEIGHT][WIDTH]);
+void draw_border(void);
 void draw_field(int field[HEIGHT][WIDTH]);
 void handle_input(int *delay_ms, int *running);
 void init_ui(void);
@@ -128,17 +129,36 @@ void copy_field(int dst[HEIGHT][WIDTH], int src[HEIGHT][WIDTH]) {
     }
 }
 
+void draw_border(void) {
+    int i;
+    int j;
+
+    for (j = 0; j < WIDTH + 2; j++) {
+        mvaddch(0, j, '-');
+        mvaddch(HEIGHT + 1, j, '-');
+    }
+    for (i = 0; i < HEIGHT + 2; i++) {
+        mvaddch(i, 0, '|');
+        mvaddch(i, WIDTH + 1, '|');
+    }
+    mvaddch(0, 0, '+');
+    mvaddch(0, WIDTH + 1, '+');
+    mvaddch(HEIGHT + 1, 0, '+');
+    mvaddch(HEIGHT + 1, WIDTH + 1, '+');
+}
+
 void draw_field(int field[HEIGHT][WIDTH]) {
     int i;
     int j;
 
     erase();
+    draw_border();
     for (i = 0; i < HEIGHT; i++) {
         for (j = 0; j < WIDTH; j++) {
             if (field[i][j]) {
-                mvaddch(i, j, 'O');
+                mvaddch(i + 1, j + 1, 'O');
             } else {
-                mvaddch(i, j, ' ');
+                mvaddch(i + 1, j + 1, ' ');
             }
         }
     }
