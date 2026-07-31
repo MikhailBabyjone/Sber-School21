@@ -1,110 +1,159 @@
-#include <ncurses.h>
+
 #include <stdio.h>
+#include <ncurses.h>
 
 #define HEIGHT 25
 #define WIDTH 80
-#define DELAY_MIN 50
+#define DELAY_MIN 100
 #define DELAY_MAX 1000
-#define DELAY_STEP 50
-#define DELAY_START 200
 
-int read_field(int field[HEIGHT][WIDTH]);
-int count_neighbors(int field[HEIGHT][WIDTH], int row, int col);
-void next_generation(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]);
-void draw_field(int field[HEIGHT][WIDTH]);
-void handle_input(int *delay_ms, int *running);
+void draw_field(int current[HEIGHT][WIDTH], int delay);
+void keyinput(int*delay, int* condition);
+int count_neighbours(int current[HEIGHT][WIDTH], int r, int c);
+void process_game(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]);
+void preset_input(int current[HEIGHT][WIDTH]);
 
-int main(void) {
+int main(void){
     int current[HEIGHT][WIDTH];
     int next[HEIGHT][WIDTH];
-    int delay_ms = DELAY_START;
-    int running = 1;
+    int delay = 200;
+    int condition = 1;
 
-    if (!read_field(current)) {
-        printf("n/a\n");
-        return 1;
-    }
-
+    preset_input(current);
+    freopen("/dev/tty", "r", stdin);
     initscr();
     cbreak();
     noecho();
     curs_set(0);
     nodelay(stdscr, TRUE);
-    keypad(stdscr, TRUE);
 
-    while (running) {
-        draw_field(current);
-        handle_input(&delay_ms, &running);
-        if (running) {
-            next_generation(current, next);
-            napms(delay_ms);
+    while (condition)
+    {   
+        draw_field(current, delay);
+        keyinput(&delay, &condition);
+        if (condition){
+        process_game(current, next);
+        napms(delay);
         }
     }
 
     endwin();
     return 0;
+    
+    
+    
+    
+
+
+
 }
 
-int read_field(int field[HEIGHT][WIDTH]) {
-    int i;
-    int j;
-    int c;
-    int ok = 1;
-
-    for (i = 0; i < HEIGHT && ok; i++) {
-        for (j = 0; j < WIDTH && ok; j++) {
-            c = getchar();
-            while (c == ' ' || c == '\n' || c == '\r' || c == '\t') {
-                c = getchar();
-            }
-            if (c == '0' || c == '1') {
-                field[i][j] = c - '0';
-            } else {
-                ok = 0;
+void draw_field(int current[HEIGHT][WIDTH], int delay){
+        erase();
+        int i = 0;
+        int j =0;
+        for (i = 0; i < HEIGHT + 2;i++){
+            mvaddch(i, 0, '|');
+            mvaddch(i, WIDTH +1, '|');
+        }
+        for (j = 0; j < WIDTH + 2;j++){
+            mvaddch(0, j, '-');
+            mvaddch(HEIGHT+1, j, '-');
+        }
+        mvaddch (0, 0, '+');
+        mvaddch (HEIGHT+1, 0, '+');
+        mvaddch (0 , WIDTH + 1, '+');
+        mvaddch (HEIGHT+1, WIDTH+1, '+');
+        for (i = 0; i < HEIGHT; i++){
+            for(j = 0; j<WIDTH; j++){
+                if (current[i][j] == 1){
+                    mvaddch(i + 1, j + 1, 'o');
+                } else if (current[i][j] == 0){
+                    mvaddch(i + 1, j + 1, ' ');
+                }
             }
         }
-    }
-    return ok;
+        mvprintw(HEIGHT + 3, 0, "A faster | Z slower | SPACE exit | current speed=%d", 1100-delay);
+        refresh();
+
 }
 
-int count_neighbors(int field[HEIGHT][WIDTH], int row, int col) {
+void keyinput(int* delay, int* condition){
+    int key;
+    int delay_step = 100;
+
+    key = getch();
+    if (key == ' '){
+        *condition = 0;
+    }
+    else if (key == 'A' || key == 'a'){
+        *delay -= delay_step;
+        if (*delay < DELAY_MIN){
+            *delay = DELAY_MIN;
+        }
+    }
+    else if (key == 'Z' || key == 'z'){
+        *delay += delay_step;
+        if (*delay > DELAY_MAX){
+        *delay = DELAY_MAX;
+        }
+    }
+    
+    
+
+
+}
+
+int count_neighbours(int current[HEIGHT][WIDTH], int r, int c) {
     int count = 0;
-    int di;
-    int dj;
-    int ni;
-    int nj;
+    int nei_r;
+    int nei_c;
 
-    for (di = -1; di <= 1; di++) {
-        for (dj = -1; dj <= 1; dj++) {
-            if (di != 0 || dj != 0) {
-                ni = (row + di + HEIGHT) % HEIGHT;
-                nj = (col + dj + WIDTH) % WIDTH;
-                count += field[ni][nj];
+    for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+            if (!(i == 0 && j == 0)) {
+            
+
+            nei_r = (r + i + HEIGHT) % HEIGHT;
+            nei_c = (c + j + WIDTH) % WIDTH;
+            
+            if (current[nei_r][nei_c]) {
+                count++;
+            }
             }
         }
     }
+
     return count;
 }
 
-void next_generation(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]) {
-    int i;
-    int j;
-    int neighbors;
-    int alive;
 
+
+void process_game(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]) {
+    int i = 0;
+    int j = 0;
+    int neighbours;
+    
     for (i = 0; i < HEIGHT; i++) {
         for (j = 0; j < WIDTH; j++) {
-            neighbors = count_neighbors(current, i, j);
-            alive = current[i][j];
-            if (alive && (neighbors == 2 || neighbors == 3)) {
-                next[i][j] = 1;
-            } else if (!alive && neighbors == 3) {
-                next[i][j] = 1;
+            neighbours = count_neighbours(current, i, j);
+            
+            if (current[i][j] == 1) {
+                if (neighbours < 2 || neighbours > 3) {
+                    next[i][j] = 0;
+                } else {
+                    next[i][j] = 1;
+                }
             } else {
-                next[i][j] = 0;
+                if (neighbours == 3) {
+                    next[i][j] = 1;
+                } else {
+                    next[i][j] = 0;
+                }
             }
         }
     }
+
     for (i = 0; i < HEIGHT; i++) {
         for (j = 0; j < WIDTH; j++) {
             current[i][j] = next[i][j];
@@ -112,50 +161,30 @@ void next_generation(int current[HEIGHT][WIDTH], int next[HEIGHT][WIDTH]) {
     }
 }
 
-void draw_field(int field[HEIGHT][WIDTH]) {
-    int i;
-    int j;
 
-    erase();
-    for (j = 0; j < WIDTH + 2; j++) {
-        mvaddch(0, j, '-');
-        mvaddch(HEIGHT + 1, j, '-');
-    }
-    for (i = 0; i < HEIGHT + 2; i++) {
-        mvaddch(i, 0, '|');
-        mvaddch(i, WIDTH + 1, '|');
-    }
-    mvaddch(0, 0, '+');
-    mvaddch(0, WIDTH + 1, '+');
-    mvaddch(HEIGHT + 1, 0, '+');
-    mvaddch(HEIGHT + 1, WIDTH + 1, '+');
-    for (i = 0; i < HEIGHT; i++) {
-        for (j = 0; j < WIDTH; j++) {
-            if (field[i][j]) {
-                mvaddch(i + 1, j + 1, 'O');
-            } else {
-                mvaddch(i + 1, j + 1, ' ');
-            }
+
+void preset_input(int current[HEIGHT][WIDTH]) {
+    for (int i = 0; i < HEIGHT; i++) {
+        for (int j = 0; j < WIDTH; j++) {
+            current[i][j] = 0;
         }
     }
-    refresh();
-}
 
-void handle_input(int *delay_ms, int *running) {
-    int key;
+    int r = 0;
+    int c = 0;
+    int ch;
 
-    key = getch();
-    if (key == ' ') {
-        *running = 0;
-    } else if (key == 'a' || key == 'A') {
-        *delay_ms -= DELAY_STEP;
-        if (*delay_ms < DELAY_MIN) {
-            *delay_ms = DELAY_MIN;
+    while (r < HEIGHT && (ch = getchar()) != EOF) {
+        if (ch == '1') {
+            current[r][c] = 1;
+            c++;
+        } else if (ch == '0') {
+            current[r][c] = 0;
+            c++;
         }
-    } else if (key == 'z' || key == 'Z') {
-        *delay_ms += DELAY_STEP;
-        if (*delay_ms > DELAY_MAX) {
-            *delay_ms = DELAY_MAX;
+        if (c >= WIDTH) {
+            c = 0;
+            r++;
         }
     }
 }
